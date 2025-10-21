@@ -13,109 +13,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { DataManager } from "@/components/data-manager";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useLocalStorage } from "@/lib/use-local-storage";
-
-type MoodEntry = {
-  date: string;
-  value: number;
-};
-
-type JournalEntry = {
-  id: string;
-  date: string;
-  content: string;
-};
-
-const BREATH_PATTERN = [
-  { label: "Inhale", seconds: 4 },
-  { label: "Hold", seconds: 4 },
-  { label: "Exhale", seconds: 6 },
-] as const;
-
-const BREATH_CYCLE_DURATION = BREATH_PATTERN.reduce(
-  (total, phase) => total + phase.seconds,
-  0,
-);
-
-const BREATH_PRESETS = [
-  { label: "1 minute", value: 60 },
-  { label: "2 minutes", value: 120 },
-] as const;
-
-const MOODS = [
-  { emoji: "😞", label: "Low", value: 1 },
-  { emoji: "😐", label: "Steady", value: 2 },
-  { emoji: "🙂", label: "Calm", value: 3 },
-  { emoji: "😄", label: "Upbeat", value: 4 },
-  { emoji: "🤩", label: "Radiant", value: 5 },
-] as const;
-
-const todayKey = () => new Date().toISOString().slice(0, 10);
-
-const formatDisplayDate = (isoDate: string) => {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(`${isoDate}T00:00:00`));
-};
-
-const calculateStreak = (entries: MoodEntry[], today: string) => {
-  if (entries.length === 0) return 0;
-  const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
-  const hasToday = sorted[0]?.date === today;
-
-  let streak = 0;
-  const cursor = new Date(`${today}T00:00:00`);
-  if (!hasToday) {
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  for (const entry of sorted) {
-    const entryDate = new Date(`${entry.date}T00:00:00`);
-    if (entryDate.getTime() === cursor.getTime()) {
-      streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    } else if (entryDate.getTime() < cursor.getTime()) {
-      break;
-    }
-  }
-
-  return streak;
-};
-
-const getBreathPhase = (elapsedSeconds: number) => {
-  if (elapsedSeconds === 0) {
-    return {
-      label: BREATH_PATTERN[0].label,
-      secondsRemaining: BREATH_PATTERN[0].seconds,
-      secondsInPhase: 0,
-    };
-  }
-
-  const position = elapsedSeconds % BREATH_CYCLE_DURATION;
-  let accumulated = 0;
-
-  for (const phase of BREATH_PATTERN) {
-    const phaseEnd = accumulated + phase.seconds;
-    if (position < phaseEnd) {
-      return {
-        label: phase.label,
-        secondsRemaining: Math.max(
-          phase.seconds - Math.floor(position - accumulated),
-          1,
-        ),
-        secondsInPhase: Math.floor(position - accumulated),
-      };
-    }
-    accumulated = phaseEnd;
-  }
-
-  return {
-    label: BREATH_PATTERN[0].label,
-    secondsRemaining: BREATH_PATTERN[0].seconds,
-    secondsInPhase: 0,
-  };
-};
+import { BREATH_PRESETS, getBreathPhase } from "@/lib/breath-utils";
+import { MOODS, calculateStreak } from "@/lib/mood-utils";
+import { formatDisplayDate, todayKey } from "@/lib/date-utils";
+import type { MoodEntry, JournalEntry } from "@/lib/types";
 
 export default function Home() {
   const today = todayKey();
@@ -257,19 +161,22 @@ export default function Home() {
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
-      <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.25rem] text-secondary">
-          Mindful
-        </p>
-        <h1 className="text-3xl font-semibold sm:text-4xl">
-          A daily ritual for calmer, brighter days.
-        </h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Flow through guided breathing, log your mood, capture reflections, and
-          watch your streak grow. Everything stays on this device thanks to
-          private local storage.
-        </p>
-      </section>
+      <div className="flex items-start justify-between gap-4">
+        <section className="flex-1 space-y-2">
+          <p className="text-sm uppercase tracking-[0.25rem] text-secondary">
+            Mindful
+          </p>
+          <h1 className="text-3xl font-semibold sm:text-4xl">
+            A daily ritual for calmer, brighter days.
+          </h1>
+          <p className="max-w-2xl text-muted-foreground">
+            Flow through guided breathing, log your mood, capture reflections, and
+            watch your streak grow. Everything stays on this device thanks to
+            private local storage.
+          </p>
+        </section>
+        <ThemeToggle />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Card className="overflow-hidden">
@@ -429,7 +336,11 @@ export default function Home() {
               />
             </div>
 
-            {todaysMood ? (
+            {!hydrationReady ? (
+              <p className="text-sm text-muted-foreground">
+                Loading your data...
+              </p>
+            ) : todaysMood ? (
               <p className="text-sm text-muted-foreground">
                 Logged for <span className="font-medium">{formatDisplayDate(today)}</span>. Keep it up!
               </p>
@@ -491,6 +402,8 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
+
+      <DataManager />
     </main>
   );
 }

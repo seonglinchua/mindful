@@ -38,7 +38,23 @@ export function useLocalStorage<T>(
           try {
             window.localStorage.setItem(key, JSON.stringify(nextValue));
           } catch (error) {
-            console.warn(`Failed to write localStorage key "${key}"`, error);
+            // Handle quota exceeded errors
+            if (
+              error instanceof DOMException &&
+              (error.name === "QuotaExceededError" ||
+                error.name === "NS_ERROR_DOM_QUOTA_REACHED")
+            ) {
+              console.error(
+                `localStorage quota exceeded for key "${key}". ` +
+                  "Consider clearing old data or exporting to free up space.",
+              );
+              // Attempt to notify user (could be enhanced with a toast/modal)
+              alert(
+                "Storage is full! Please export your data and consider clearing old entries.",
+              );
+            } else {
+              console.warn(`Failed to write localStorage key "${key}"`, error);
+            }
           }
         }
 
