@@ -16,8 +16,15 @@ interface DataManagerProps {
 
 export function DataManager({ onImport }: DataManagerProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleExport = () => {
+    if (typeof window === "undefined") return;
+
     try {
       const data: Record<string, unknown> = {};
       const keys = ["mindful:moods", "mindful:intentions", "mindful:journals", "mindful:breath-loop"];
@@ -55,6 +62,8 @@ export function DataManager({ onImport }: DataManagerProps) {
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (typeof window === "undefined") return;
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -94,6 +103,27 @@ export function DataManager({ onImport }: DataManagerProps) {
     // Reset input so same file can be selected again
     event.target.value = "";
   };
+
+  if (!mounted) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Data management</CardTitle>
+          <CardDescription>
+            Export your data for safekeeping or import from a previous backup.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Button variant="outline" disabled>
+            Export data
+          </Button>
+          <Button variant="outline" disabled>
+            Import data
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
