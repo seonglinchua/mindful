@@ -14,6 +14,25 @@ interface DataManagerProps {
   onImport?: () => void;
 }
 
+const STORAGE_PREFIX = "mindful:";
+
+const collectMindfulKeys = () => {
+  if (typeof window === "undefined") {
+    return [] as string[];
+  }
+
+  const keys: string[] = [];
+
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key && key.startsWith(STORAGE_PREFIX)) {
+      keys.push(key);
+    }
+  }
+
+  return keys.sort();
+};
+
 export function DataManager({ onImport }: DataManagerProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = React.useState(false);
@@ -27,7 +46,7 @@ export function DataManager({ onImport }: DataManagerProps) {
 
     try {
       const data: Record<string, unknown> = {};
-      const keys = ["mindful:moods", "mindful:intentions", "mindful:journals", "mindful:breath-loop"];
+      const keys = collectMindfulKeys();
 
       keys.forEach((key) => {
         const value = localStorage.getItem(key);
@@ -81,8 +100,14 @@ export function DataManager({ onImport }: DataManagerProps) {
           return;
         }
 
+        const existingKeys = collectMindfulKeys();
+
+        existingKeys.forEach((key) => {
+          localStorage.removeItem(key);
+        });
+
         Object.entries(data).forEach(([key, value]) => {
-          if (key.startsWith("mindful:")) {
+          if (key.startsWith(STORAGE_PREFIX)) {
             localStorage.setItem(key, JSON.stringify(value));
           }
         });
