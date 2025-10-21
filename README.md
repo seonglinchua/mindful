@@ -1,6 +1,6 @@
 ## Mindful
 
-Mindful is a statically-exported Next.js 14 application that keeps your daily calm routine on-device. Track breathing sessions, log your mood, jot quick reflections, and watch your streak—no accounts or servers required.
+Mindful is a statically-exported Next.js 15 application that keeps your daily calm routine on-device. Track breathing sessions, log your mood, jot quick reflections, and watch your streak—no accounts or servers required.
 
 ### Features
 
@@ -12,9 +12,9 @@ Mindful is a statically-exported Next.js 14 application that keeps your daily ca
 
 ### Tech Stack
 
-- [Next.js 14 (App Router)](https://nextjs.org/docs/app)
+- [Next.js 15 (App Router)](https://nextjs.org/docs/app)
 - [TypeScript](https://www.typescriptlang.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
+- [Tailwind CSS 4](https://tailwindcss.com/)
 - Custom shadcn-style UI primitives in `components/ui`
 
 ## Local Development
@@ -47,25 +47,20 @@ npm run serve
 
 ## GitHub Pages Deployment
 
-1. Set the `REPO_NAME` environment variable to your repository name (no leading slash) before building:
+1. Set the `NEXT_PUBLIC_BASE_PATH` environment variable to your repository path before building:
 
    ```bash
-   export REPO_NAME="your-repo-name"
+   export NEXT_PUBLIC_BASE_PATH="/your-repo-name"
    npm run build
    ```
 
    The `basePath`/`assetPrefix` and routes adjust automatically when this variable is present.
 
-2. Commit and push the generated `out/` directory to the `gh-pages` branch. You can automate this with a simple script or GitHub Action; here's a quick manual approach:
+2. The included GitHub Actions workflow (`.github/workflows/deploy.yml`) handles automatic deployment to GitHub Pages on push to the main branch.
 
-   ```bash
-   npm run build
-   git subtree push --prefix out origin gh-pages
-   ```
+3. Enable GitHub Pages in your repository settings, pointing to GitHub Actions as the source.
 
-3. Enable GitHub Pages in your repository settings, pointing to the `gh-pages` branch.
-
-When running locally you can omit `REPO_NAME`, and the app will use the root path.
+When running locally you can omit `NEXT_PUBLIC_BASE_PATH`, and the app will use the root path.
 
 ## Project Structure Highlights
 
