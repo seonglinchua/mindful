@@ -104,8 +104,29 @@ export default function Home() {
   const totalSeconds = preset;
   const wholeElapsed = Math.floor(elapsed);
   const remainingSeconds = Math.max(totalSeconds - wholeElapsed, 0);
-  const progress = Math.min((elapsed / totalSeconds) * 100, 100);
-  const activePhase = getBreathPhase(wholeElapsed);
+  const progress = Math.min(
+    totalSeconds > 0 ? (elapsed / totalSeconds) * 100 : 0,
+    100,
+  );
+  const activePhase = useMemo(() => {
+    if (totalSeconds === 0) {
+      return {
+        label: "Ready",
+        secondsRemaining: 0,
+        secondsInPhase: 0,
+      };
+    }
+
+    if (wholeElapsed >= totalSeconds) {
+      return {
+        label: "Session complete",
+        secondsRemaining: 0,
+        secondsInPhase: 0,
+      };
+    }
+
+    return getBreathPhase(wholeElapsed);
+  }, [totalSeconds, wholeElapsed]);
 
   const todaysMood = useMemo(
     () => moods.find((entry) => entry.date === today),
