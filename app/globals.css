@@ -20,6 +20,16 @@
   --border: 215 20% 80%;
   --input: 215 20% 80%;
   --ring: 221 83% 53%;
+
+  /* Font sizes - default (medium) */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
 }
 
 .dark {
@@ -44,6 +54,265 @@
   --ring: 221 83% 60%;
 }
 
+/* Ocean Theme */
+.theme-ocean {
+  --background: 200 40% 98%;
+  --foreground: 200 50% 10%;
+  --card: 200 30% 100%;
+  --card-foreground: 200 50% 10%;
+  --popover: 200 30% 100%;
+  --popover-foreground: 200 50% 10%;
+  --primary: 199 89% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 187 71% 42%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 200 20% 90%;
+  --muted-foreground: 200 40% 30%;
+  --accent: 174 72% 56%;
+  --accent-foreground: 200 50% 10%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 200 20% 82%;
+  --input: 200 20% 82%;
+  --ring: 199 89% 48%;
+}
+
+.dark.theme-ocean {
+  --background: 200 50% 8%;
+  --foreground: 200 30% 95%;
+  --card: 200 40% 12%;
+  --card-foreground: 200 30% 95%;
+  --popover: 200 40% 12%;
+  --popover-foreground: 200 30% 95%;
+  --primary: 199 89% 58%;
+  --primary-foreground: 200 50% 10%;
+  --secondary: 187 71% 52%;
+  --secondary-foreground: 200 50% 10%;
+  --muted: 200 30% 20%;
+  --muted-foreground: 200 20% 75%;
+  --accent: 174 72% 66%;
+  --accent-foreground: 200 50% 10%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 200 20% 30%;
+  --input: 200 20% 30%;
+  --ring: 199 89% 58%;
+}
+
+/* Forest Theme */
+.theme-forest {
+  --background: 140 30% 98%;
+  --foreground: 140 40% 10%;
+  --card: 140 20% 100%;
+  --card-foreground: 140 40% 10%;
+  --popover: 140 20% 100%;
+  --popover-foreground: 140 40% 10%;
+  --primary: 142 71% 45%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 120 60% 35%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 140 20% 88%;
+  --muted-foreground: 140 30% 25%;
+  --accent: 88 50% 53%;
+  --accent-foreground: 140 40% 10%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 140 20% 80%;
+  --input: 140 20% 80%;
+  --ring: 142 71% 45%;
+}
+
+.dark.theme-forest {
+  --background: 140 40% 7%;
+  --foreground: 140 20% 95%;
+  --card: 140 30% 11%;
+  --card-foreground: 140 20% 95%;
+  --popover: 140 30% 11%;
+  --popover-foreground: 140 20% 95%;
+  --primary: 142 71% 55%;
+  --primary-foreground: 140 40% 10%;
+  --secondary: 120 60% 45%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 140 25% 18%;
+  --muted-foreground: 140 15% 72%;
+  --accent: 88 50% 63%;
+  --accent-foreground: 140 40% 10%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 140 15% 28%;
+  --input: 140 15% 28%;
+  --ring: 142 71% 55%;
+}
+
+/* Sunset Theme */
+.theme-sunset {
+  --background: 20 40% 98%;
+  --foreground: 20 50% 10%;
+  --card: 20 30% 100%;
+  --card-foreground: 20 50% 10%;
+  --popover: 20 30% 100%;
+  --popover-foreground: 20 50% 10%;
+  --primary: 15 86% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 340 82% 52%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 20 20% 90%;
+  --muted-foreground: 20 40% 28%;
+  --accent: 45 93% 58%;
+  --accent-foreground: 20 50% 10%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 20 20% 82%;
+  --input: 20 20% 82%;
+  --ring: 15 86% 58%;
+}
+
+.dark.theme-sunset {
+  --background: 20 45% 8%;
+  --foreground: 20 25% 95%;
+  --card: 20 35% 12%;
+  --card-foreground: 20 25% 95%;
+  --popover: 20 35% 12%;
+  --popover-foreground: 20 25% 95%;
+  --primary: 15 86% 68%;
+  --primary-foreground: 20 50% 10%;
+  --secondary: 340 82% 62%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 20 25% 20%;
+  --muted-foreground: 20 15% 75%;
+  --accent: 45 93% 68%;
+  --accent-foreground: 20 50% 10%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 20 15% 28%;
+  --input: 20 15% 28%;
+  --ring: 15 86% 68%;
+}
+
+/* Lavender Theme */
+.theme-lavender {
+  --background: 270 30% 98%;
+  --foreground: 270 40% 12%;
+  --card: 270 20% 100%;
+  --card-foreground: 270 40% 12%;
+  --popover: 270 20% 100%;
+  --popover-foreground: 270 40% 12%;
+  --primary: 262 83% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 280 55% 50%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 270 20% 90%;
+  --muted-foreground: 270 30% 28%;
+  --accent: 290 70% 65%;
+  --accent-foreground: 270 40% 12%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 270 20% 82%;
+  --input: 270 20% 82%;
+  --ring: 262 83% 58%;
+}
+
+.dark.theme-lavender {
+  --background: 270 40% 8%;
+  --foreground: 270 20% 95%;
+  --card: 270 30% 12%;
+  --card-foreground: 270 20% 95%;
+  --popover: 270 30% 12%;
+  --popover-foreground: 270 20% 95%;
+  --primary: 262 83% 68%;
+  --primary-foreground: 270 40% 12%;
+  --secondary: 280 55% 60%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 270 25% 20%;
+  --muted-foreground: 270 15% 75%;
+  --accent: 290 70% 75%;
+  --accent-foreground: 270 40% 12%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 270 15% 28%;
+  --input: 270 15% 28%;
+  --ring: 262 83% 68%;
+}
+
+/* Monochrome Theme */
+.theme-monochrome {
+  --background: 0 0% 98%;
+  --foreground: 0 0% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 10%;
+  --primary: 0 0% 25%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 40%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 90%;
+  --muted-foreground: 0 0% 30%;
+  --accent: 0 0% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 82%;
+  --input: 0 0% 82%;
+  --ring: 0 0% 25%;
+}
+
+.dark.theme-monochrome {
+  --background: 0 0% 8%;
+  --foreground: 0 0% 95%;
+  --card: 0 0% 12%;
+  --card-foreground: 0 0% 95%;
+  --popover: 0 0% 12%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 0 0% 75%;
+  --primary-foreground: 0 0% 10%;
+  --secondary: 0 0% 60%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 20%;
+  --muted-foreground: 0 0% 75%;
+  --accent: 0 0% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 28%;
+  --input: 0 0% 28%;
+  --ring: 0 0% 75%;
+}
+
+/* Font size variations */
+.font-size-small {
+  --font-size-xs: 0.625rem;
+  --font-size-sm: 0.75rem;
+  --font-size-base: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.125rem;
+  --font-size-2xl: 1.25rem;
+  --font-size-3xl: 1.5rem;
+  --font-size-4xl: 1.875rem;
+}
+
+.font-size-large {
+  --font-size-xs: 0.875rem;
+  --font-size-sm: 1rem;
+  --font-size-base: 1.125rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2.25rem;
+  --font-size-4xl: 3rem;
+}
+
+.font-size-extra-large {
+  --font-size-xs: 1rem;
+  --font-size-sm: 1.125rem;
+  --font-size-base: 1.25rem;
+  --font-size-lg: 1.5rem;
+  --font-size-xl: 1.75rem;
+  --font-size-2xl: 2rem;
+  --font-size-3xl: 2.5rem;
+  --font-size-4xl: 3.5rem;
+}
+
 * {
   border-color: hsl(var(--border));
 }
@@ -53,6 +322,7 @@ body {
   color: hsl(var(--foreground));
   font-feature-settings: "rlig" 1, "calt" 1;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-size: var(--font-size-base);
   background-image: radial-gradient(
       rgba(59, 130, 246, 0.08) 1px,
       transparent 1px

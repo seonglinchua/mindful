@@ -23,20 +23,31 @@ import { BreathingHistory } from "@/components/breathing-history";
 import { JournalManager } from "@/components/journal-manager";
 import { DateRangeSelector } from "@/components/date-range-selector";
 import { ReminderSettingsComponent } from "@/components/reminder-settings";
+import { SettingsPanel } from "@/components/settings-panel";
+import { DashboardLayoutManager } from "@/components/dashboard-layout-manager";
+import { MoodTimelineInteractive } from "@/components/mood-timeline-interactive";
+import { BreathingProgressViz } from "@/components/breathing-progress-viz";
+import { StatsComparison } from "@/components/stats-comparison";
+import { PushNotifications } from "@/components/push-notifications";
 import { useLocalStorage } from "@/lib/use-local-storage";
+import { useCustomization } from "@/lib/use-customization";
+import { useDashboardLayout } from "@/lib/use-dashboard-layout";
 import { BREATH_PRESETS, BREATH_PATTERNS, getBreathPhase } from "@/lib/breath-utils";
 import { useBreathAudio } from "@/lib/use-breath-audio";
 import { MOODS, calculateStreak } from "@/lib/mood-utils";
 import { formatDisplayDate, todayKey } from "@/lib/date-utils";
 import type { MoodEntry, JournalEntry, BreathSession, DateRange, Timeframe } from "@/lib/types";
 import { useToast } from "@/components/toast";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Settings } from "lucide-react";
 
 export default function Home() {
   const today = todayKey();
   const { showToast } = useToast();
+  useCustomization();
+  useDashboardLayout();
 
   const [preset, setPreset] = useState<number>(BREATH_PRESETS[0].value);
+  const [showSettings, setShowSettings] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -319,7 +330,18 @@ export default function Home() {
             private local storage.
           </p>
         </section>
-        <ThemeToggle />
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9 p-0"
+            onClick={() => setShowSettings(!showSettings)}
+            aria-label="Open settings"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
@@ -743,6 +765,20 @@ export default function Home() {
               onDateRangeChange={setAnalyticsDateRange}
             />
 
+            {/* Week-over-Week Stats Comparison */}
+            <StatsComparison
+              moods={moods}
+              breathSessions={breathSessions}
+              journalEntries={journalEntries}
+              intentions={intentions}
+            />
+
+            {/* Interactive Mood Timeline */}
+            <MoodTimelineInteractive
+              moods={moods}
+              dateRange={analyticsDateRange}
+            />
+
             {/* Mood Analytics */}
             <div className="grid gap-6 lg:grid-cols-2">
               <MoodTrendsChart
@@ -755,6 +791,9 @@ export default function Home() {
 
             {/* Mood Calendar */}
             <MoodCalendar moods={moods} />
+
+            {/* Breathing Progress Visualization */}
+            <BreathingProgressViz sessions={breathSessions} />
 
             {/* Breathing History */}
             <BreathingHistory
@@ -773,8 +812,41 @@ export default function Home() {
         onDelete={handleJournalDelete}
       />
 
-      {/* Reminder Settings */}
-      <ReminderSettingsComponent />
+      {/* Settings Section */}
+      {showSettings && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Settings & Customization</CardTitle>
+                <CardDescription>
+                  Personalize your Mindful experience
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowSettings(false)}
+              >
+                <ChevronUp className="w-4 h-4 mr-2" />
+                Hide Settings
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Appearance & Customization */}
+            <SettingsPanel />
+
+            {/* Dashboard Layout */}
+            <DashboardLayoutManager />
+
+            {/* Push Notifications */}
+            <PushNotifications />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Legacy Reminder Settings (kept for compatibility) */}
+      {!showSettings && <ReminderSettingsComponent />}
 
       <DataManager />
     </main>
