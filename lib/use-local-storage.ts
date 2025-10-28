@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { showGlobalToast } from "@/components/toast";
 
 type InitialValue<T> = T | (() => T);
 
@@ -48,9 +49,10 @@ export function useLocalStorage<T>(
                 `localStorage quota exceeded for key "${key}". ` +
                   "Consider clearing old data or exporting to free up space.",
               );
-              // Attempt to notify user (could be enhanced with a toast/modal)
-              alert(
+              showGlobalToast(
                 "Storage is full! Please export your data and consider clearing old entries.",
+                "error",
+                8000
               );
             } else {
               console.warn(`Failed to write localStorage key "${key}"`, error);
