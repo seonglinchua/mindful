@@ -15,14 +15,18 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { DataManager } from "@/components/data-manager";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BreathingGuide } from "@/components/breathing-guide";
 import { useLocalStorage } from "@/lib/use-local-storage";
-import { BREATH_PRESETS, getBreathPhase } from "@/lib/breath-utils";
+import { BREATH_PRESETS, BREATH_PATTERNS, getBreathPhase } from "@/lib/breath-utils";
+import { useBreathAudio } from "@/lib/use-breath-audio";
 import { MOODS, calculateStreak } from "@/lib/mood-utils";
 import { formatDisplayDate, todayKey } from "@/lib/date-utils";
-import type { MoodEntry, JournalEntry } from "@/lib/types";
+import type { MoodEntry, JournalEntry, BreathSession } from "@/lib/types";
+import { useToast } from "@/components/toast";
 
 export default function Home() {
   const today = todayKey();
+  const { showToast } = useToast();
 
   const [preset, setPreset] = useState<number>(BREATH_PRESETS[0].value);
   const [elapsed, setElapsed] = useState(0);
@@ -32,6 +36,21 @@ export default function Home() {
     "mindful:breath-loop",
     false,
   );
+  const [breathPattern, setBreathPattern, patternHydrated] = useLocalStorage<string>(
+    "mindful:breath-pattern",
+    "4-4-6",
+  );
+  const [audioEnabled, setAudioEnabled, audioHydrated] = useLocalStorage<boolean>(
+    "mindful:breath-audio",
+    false,
+  );
+  const [showGuide, setShowGuide, guideHydrated] = useLocalStorage<boolean>(
+    "mindful:breath-guide",
+    true,
+  );
+
+  const [breathSessions, setBreathSessions, sessionsHydrated] =
+    useLocalStorage<BreathSession[]>("mindful:breath-sessions", []);
 
   const [moods, setMoods, moodsHydrated] = useLocalStorage<MoodEntry[]>(
     "mindful:moods",
@@ -45,6 +64,9 @@ export default function Home() {
 
   const [journalDraft, setJournalDraft] = useState("");
 
+  // Use breath audio hook
+  useBreathAudio(Math.floor(elapsed), breathPattern, isRunning, audioEnabled);
+
   useEffect(() => {
     if (!isRunning || startTime === null) return;
 
@@ -57,6 +79,18 @@ export default function Home() {
       setElapsed(clamped);
 
       if (clamped >= preset) {
+        // Session complete - save it
+        const session: BreathSession = {
+          id: `session-${Date.now()}`,
+          date: today,
+          duration: preset,
+          pattern: breathPattern,
+          completedAt: new Date().toISOString(),
+        };
+
+        setBreathSessions((prev) => [session, ...prev]);
+        showToast(`Breathing session complete! ${preset}s with ${BREATH_PATTERNS[breathPattern]?.name}`, "success");
+
         if (loop) {
           const now = Date.now();
           setStartTime(now);
@@ -72,7 +106,7 @@ export default function Home() {
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [isRunning, startTime, preset, loop]);
+  }, [isRunning, startTime, preset, loop, breathPattern, today, setBreathSessions, showToast]);
 
   const handleStartPause = () => {
     if (isRunning) {
@@ -101,6 +135,13 @@ export default function Home() {
     setIsRunning(false);
   };
 
+  const handlePatternChange = (patternKey: string) => {
+    setBreathPattern(patternKey);
+    setElapsed(0);
+    setStartTime(null);
+    setIsRunning(false);
+  };
+
   const totalSeconds = preset;
   const wholeElapsed = Math.floor(elapsed);
   const remainingSeconds = Math.max(totalSeconds - wholeElapsed, 0);
@@ -114,6 +155,7 @@ export default function Home() {
         label: "Ready",
         secondsRemaining: 0,
         secondsInPhase: 0,
+        phaseIndex: 0,
       };
     }
 
@@ -122,11 +164,23 @@ export default function Home() {
         label: "Session complete",
         secondsRemaining: 0,
         secondsInPhase: 0,
+        phaseIndex: 0,
       };
     }
 
-    return getBreathPhase(wholeElapsed);
-  }, [totalSeconds, wholeElapsed]);
+    return getBreathPhase(wholeElapsed, breathPattern);
+  }, [totalSeconds, wholeElapsed, breathPattern]);
+
+  const todaysSessions = useMemo(
+    () => breathSessions.filter((session) => session.date === today),
+    [breathSessions, today],
+  );
+
+  const totalBreathMinutes = useMemo(() => {
+    return Math.floor(
+      breathSessions.reduce((sum, session) => sum + session.duration, 0) / 60
+    );
+  }, [breathSessions]);
 
   const todaysMood = useMemo(
     () => moods.find((entry) => entry.date === today),
@@ -175,10 +229,18 @@ export default function Home() {
       ...prev,
     ]);
     setJournalDraft("");
+    showToast("Journal entry saved", "success");
   };
 
   const hydrationReady =
-    moodsHydrated && journalsHydrated && intentionsHydrated && loopHydrated;
+    moodsHydrated &&
+    journalsHydrated &&
+    intentionsHydrated &&
+    loopHydrated &&
+    patternHydrated &&
+    audioHydrated &&
+    guideHydrated &&
+    sessionsHydrated;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
@@ -201,29 +263,71 @@ export default function Home() {
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Card className="overflow-hidden">
-          <CardHeader className="flex flex-col gap-4 pb-0 sm:flex-row sm:items-center sm:justify-between">
+          <CardHeader className="flex flex-col gap-4 pb-4">
             <div>
               <CardTitle>Breathing guide</CardTitle>
-              <CardDescription>4-4-6 cadence with quick presets.</CardDescription>
+              <CardDescription>
+                Choose your pattern and duration for mindful breathing.
+              </CardDescription>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {BREATH_PRESETS.map((presetOption) => (
-                <Button
-                  key={presetOption.value}
-                  variant={
-                    presetOption.value === preset ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => handlePresetChange(presetOption.value)}
-                >
-                  {presetOption.label}
-                </Button>
-              ))}
+
+            {/* Pattern Selection */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Breathing pattern:</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(BREATH_PATTERNS).map(([key, pattern]) => (
+                  <Button
+                    key={key}
+                    variant={breathPattern === key ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePatternChange(key)}
+                    disabled={!hydrationReady || isRunning}
+                  >
+                    {pattern.name}
+                  </Button>
+                ))}
+              </div>
+              {BREATH_PATTERNS[breathPattern] && (
+                <p className="text-xs text-muted-foreground">
+                  {BREATH_PATTERNS[breathPattern].description}
+                </p>
+              )}
+            </div>
+
+            {/* Duration Presets */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Duration:</p>
+              <div className="flex flex-wrap gap-2">
+                {BREATH_PRESETS.map((presetOption) => (
+                  <Button
+                    key={presetOption.value}
+                    variant={
+                      presetOption.value === preset ? "default" : "outline"
+                    }
+                    size="sm"
+                    onClick={() => handlePresetChange(presetOption.value)}
+                    disabled={!hydrationReady || isRunning}
+                  >
+                    {presetOption.label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </CardHeader>
+
           <CardContent className="space-y-6">
+            {/* Visual Breathing Guide */}
+            {showGuide && (
+              <BreathingGuide
+                elapsed={wholeElapsed}
+                pattern={breathPattern}
+                isRunning={isRunning}
+              />
+            )}
+
+            {/* Timer Display */}
             <div className="rounded-xl border border-border/80 bg-gradient-to-br from-white/90 to-primary/5 p-6 shadow-sm dark:from-slate-900/70 dark:to-primary/10">
-              <div className="flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-6">
                 <div>
                   <p className="text-sm uppercase tracking-[0.3rem] text-secondary">
                     {activePhase.label}
@@ -237,14 +341,36 @@ export default function Home() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={loop}
-                    disabled={!hydrationReady}
-                    onCheckedChange={(state) => setLoop(state)}
-                    aria-label="Loop breathing session"
-                  />
-                  <span className="text-sm text-muted-foreground">Loop</span>
+
+                {/* Options */}
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={loop}
+                      disabled={!hydrationReady}
+                      onCheckedChange={(state) => setLoop(state)}
+                      aria-label="Loop breathing session"
+                    />
+                    <span className="text-sm text-muted-foreground">Loop</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={audioEnabled}
+                      disabled={!hydrationReady}
+                      onCheckedChange={(state) => setAudioEnabled(state)}
+                      aria-label="Enable audio cues"
+                    />
+                    <span className="text-sm text-muted-foreground">Audio cues</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={showGuide}
+                      disabled={!hydrationReady}
+                      onCheckedChange={(state) => setShowGuide(state)}
+                      aria-label="Show visual guide"
+                    />
+                    <span className="text-sm text-muted-foreground">Visual guide</span>
+                  </div>
                 </div>
               </div>
 
@@ -259,14 +385,23 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Controls */}
             <div className="flex flex-wrap gap-3">
-              <Button onClick={handleStartPause}>
+              <Button onClick={handleStartPause} disabled={!hydrationReady}>
                 {isRunning ? "Pause" : elapsed > 0 ? "Resume" : "Begin"}
               </Button>
-              <Button variant="outline" onClick={handleReset}>
+              <Button variant="outline" onClick={handleReset} disabled={!hydrationReady}>
                 Reset
               </Button>
             </div>
+
+            {/* Today's Sessions */}
+            {todaysSessions.length > 0 && (
+              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                <span className="font-medium">{todaysSessions.length}</span> session
+                {todaysSessions.length > 1 ? "s" : ""} completed today
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -298,12 +433,20 @@ export default function Home() {
                   {streak}
                 </p>
               </div>
-              <div className="rounded-lg border border-border/80 bg-card/70 p-4 shadow-floating sm:col-span-2">
+              <div className="rounded-lg border border-border/80 bg-card/70 p-4 shadow-floating">
                 <p className="text-xs uppercase tracking-[0.2rem] text-secondary">
                   Journal entries
                 </p>
                 <p className="mt-2 text-3xl font-semibold tabular-nums">
                   {journalEntries.length}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/80 bg-card/70 p-4 shadow-floating">
+                <p className="text-xs uppercase tracking-[0.2rem] text-secondary">
+                  Breath minutes
+                </p>
+                <p className="mt-2 text-3xl font-semibold tabular-nums">
+                  {totalBreathMinutes}
                 </p>
               </div>
             </div>
