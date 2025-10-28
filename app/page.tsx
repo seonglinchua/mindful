@@ -16,13 +16,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { DataManager } from "@/components/data-manager";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BreathingGuide } from "@/components/breathing-guide";
+import { MoodTrendsChart } from "@/components/mood-trends-chart";
+import { MoodInsights } from "@/components/mood-insights";
+import { MoodCalendar } from "@/components/mood-calendar";
+import { BreathingHistory } from "@/components/breathing-history";
+import { JournalManager } from "@/components/journal-manager";
+import { DateRangeSelector } from "@/components/date-range-selector";
+import { ReminderSettingsComponent } from "@/components/reminder-settings";
 import { useLocalStorage } from "@/lib/use-local-storage";
 import { BREATH_PRESETS, BREATH_PATTERNS, getBreathPhase } from "@/lib/breath-utils";
 import { useBreathAudio } from "@/lib/use-breath-audio";
 import { MOODS, calculateStreak } from "@/lib/mood-utils";
 import { formatDisplayDate, todayKey } from "@/lib/date-utils";
-import type { MoodEntry, JournalEntry, BreathSession } from "@/lib/types";
+import type { MoodEntry, JournalEntry, BreathSession, DateRange, Timeframe } from "@/lib/types";
 import { useToast } from "@/components/toast";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 export default function Home() {
   const today = todayKey();
@@ -63,6 +71,15 @@ export default function Home() {
     useLocalStorage<JournalEntry[]>("mindful:journals", []);
 
   const [journalDraft, setJournalDraft] = useState("");
+  const [journalTags, setJournalTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
+  const [moodNotes, setMoodNotes] = useState("");
+  const [showMoodNotes, setShowMoodNotes] = useState(false);
+
+  // Analytics state
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<Timeframe>('week');
+  const [analyticsDateRange, setAnalyticsDateRange] = useState<DateRange | undefined>();
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // Use breath audio hook
   useBreathAudio(Math.floor(elapsed), breathPattern, isRunning, audioEnabled);
@@ -207,11 +224,25 @@ export default function Home() {
   const handleMoodSelect = (value: number) => {
     setMoods((prev) => {
       const filtered = prev.filter((entry) => entry.date !== today);
-      return [...filtered, { date: today, value }].sort((a, b) =>
+      const newEntry: MoodEntry = {
+        date: today,
+        value,
+        notes: moodNotes.trim() || undefined
+      };
+      return [...filtered, newEntry].sort((a, b) =>
         a.date.localeCompare(b.date),
       );
     });
+    setMoodNotes("");
+    setShowMoodNotes(false);
   };
+
+  // Load existing mood notes if any
+  useEffect(() => {
+    if (todaysMood?.notes) {
+      setMoodNotes(todaysMood.notes);
+    }
+  }, [todaysMood]);
 
   const handleIntentionChange = (value: string) => {
     setIntentions((prev) => ({
@@ -224,12 +255,42 @@ export default function Home() {
     const content = journalDraft.trim();
     if (!content) return;
 
-    setJournalEntries((prev) => [
-      { id: `entry-${Date.now()}`, date: today, content },
-      ...prev,
-    ]);
+    const newEntry: JournalEntry = {
+      id: `entry-${Date.now()}`,
+      date: today,
+      content,
+      tags: journalTags.length > 0 ? journalTags : undefined
+    };
+
+    setJournalEntries((prev) => [newEntry, ...prev]);
     setJournalDraft("");
+    setJournalTags([]);
+    setNewTag("");
     showToast("Journal entry saved", "success");
+  };
+
+  const handleJournalEdit = (id: string, content: string, tags?: string[]) => {
+    setJournalEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === id ? { ...entry, content, tags } : entry
+      )
+    );
+  };
+
+  const handleJournalDelete = (id: string) => {
+    setJournalEntries((prev) => prev.filter((entry) => entry.id !== id));
+  };
+
+  const handleAddTag = () => {
+    const tag = newTag.trim().toLowerCase();
+    if (tag && !journalTags.includes(tag)) {
+      setJournalTags([...journalTags, tag]);
+      setNewTag("");
+    }
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setJournalTags(journalTags.filter(t => t !== tag));
   };
 
   const hydrationReady =
@@ -500,14 +561,43 @@ export default function Home() {
               />
             </div>
 
+            {/* Mood Notes (Optional) */}
+            <div className="space-y-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMoodNotes(!showMoodNotes)}
+                className="flex items-center gap-2 h-auto p-0 text-sm text-muted-foreground hover:text-foreground"
+              >
+                {showMoodNotes ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                Add notes to mood (optional)
+              </Button>
+              {showMoodNotes && (
+                <Textarea
+                  value={moodNotes}
+                  onChange={(e) => setMoodNotes(e.target.value)}
+                  placeholder="What's on your mind? Any context for your mood today?"
+                  disabled={!hydrationReady}
+                  className="min-h-[80px]"
+                />
+              )}
+            </div>
+
             {!hydrationReady ? (
               <p className="text-sm text-muted-foreground">
                 Loading your data...
               </p>
             ) : todaysMood ? (
-              <p className="text-sm text-muted-foreground">
-                Logged for <span className="font-medium">{formatDisplayDate(today)}</span>. Keep it up!
-              </p>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  Logged for <span className="font-medium">{formatDisplayDate(today)}</span>. Keep it up!
+                </p>
+                {todaysMood.notes && (
+                  <p className="text-xs text-muted-foreground italic">
+                    Note: {todaysMood.notes}
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">
                 Logging once a day keeps your streak alive.
@@ -520,7 +610,7 @@ export default function Home() {
           <CardHeader>
             <CardTitle>Journal</CardTitle>
             <CardDescription>
-              Capture a thought from today. Entries stay on this device.
+              Capture a thought from today. Entries stay on this device. Supports markdown formatting.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -529,12 +619,60 @@ export default function Home() {
               onChange={(event) => setJournalDraft(event.target.value)}
               placeholder="Breathe in, notice, and write what you discover..."
               disabled={!hydrationReady}
+              className="min-h-[120px]"
             />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{journalDraft.trim().length} characters</span>
+            <div className="flex items-center justify-between text-xs">
+              <div className="space-y-1">
+                <span className={journalDraft.length > 5000 ? "text-orange-500" : "text-muted-foreground"}>
+                  {journalDraft.trim().length} characters
+                  {journalDraft.length > 5000 && " (Consider keeping entries concise)"}
+                </span>
+              </div>
               <Button size="sm" onClick={handleJournalSave} disabled={!journalDraft.trim() || !hydrationReady}>
                 Save entry
               </Button>
+            </div>
+
+            {/* Tags Input */}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Add tags (e.g., gratitude, work, family)..."
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddTag();
+                    }
+                  }}
+                  disabled={!hydrationReady}
+                  className="flex-1"
+                />
+                <Button size="sm" onClick={handleAddTag} disabled={!newTag.trim() || !hydrationReady}>
+                  Add Tag
+                </Button>
+              </div>
+              {journalTags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {journalTags.map(tag => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary"
+                    >
+                      {tag}
+                      <button
+                        onClick={() => handleRemoveTag(tag)}
+                        className="hover:bg-primary/20 rounded-full p-0.5"
+                        disabled={!hydrationReady}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -555,7 +693,16 @@ export default function Home() {
                       <p className="text-xs uppercase tracking-[0.2rem] text-secondary">
                         {formatDisplayDate(entry.date)}
                       </p>
-                      <p className="mt-2 text-sm leading-relaxed text-foreground">
+                      {entry.tags && entry.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {entry.tags.map(tag => (
+                            <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <p className="mt-2 text-sm leading-relaxed text-foreground whitespace-pre-wrap">
                         {entry.content}
                       </p>
                     </li>
@@ -566,6 +713,68 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Enhanced Analytics Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Analytics & Insights</CardTitle>
+              <CardDescription>
+                Explore your mood patterns, breathing history, and journal entries
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowAnalytics(!showAnalytics)}
+            >
+              {showAnalytics ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
+              {showAnalytics ? 'Hide' : 'Show'} Analytics
+            </Button>
+          </div>
+        </CardHeader>
+        {showAnalytics && (
+          <CardContent className="space-y-6">
+            {/* Date Range Selector */}
+            <DateRangeSelector
+              timeframe={analyticsTimeframe}
+              dateRange={analyticsDateRange}
+              onTimeframeChange={setAnalyticsTimeframe}
+              onDateRangeChange={setAnalyticsDateRange}
+            />
+
+            {/* Mood Analytics */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <MoodTrendsChart
+                moods={moods}
+                timeframe={analyticsTimeframe}
+                dateRange={analyticsDateRange}
+              />
+              <MoodInsights moods={moods} timeframe={analyticsTimeframe === 'custom' ? 'all' : analyticsTimeframe} />
+            </div>
+
+            {/* Mood Calendar */}
+            <MoodCalendar moods={moods} />
+
+            {/* Breathing History */}
+            <BreathingHistory
+              sessions={breathSessions}
+              timeframe={analyticsTimeframe}
+              dateRange={analyticsDateRange}
+            />
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Journal Manager */}
+      <JournalManager
+        journals={journalEntries}
+        onEdit={handleJournalEdit}
+        onDelete={handleJournalDelete}
+      />
+
+      {/* Reminder Settings */}
+      <ReminderSettingsComponent />
 
       <DataManager />
     </main>
