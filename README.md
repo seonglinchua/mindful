@@ -1,77 +1,67 @@
-## Mindful
+# Mindful
 
-Mindful is a statically-exported Next.js 14 application that keeps your daily calm routine on-device. Track breathing sessions, log your mood, jot quick reflections, and watch your streak—no accounts or servers required.
+Mindful is a private, on-device wellness tracker for guided breathing, daily mood check-ins, intentions, and short reflections. It is built with Next.js and exports as a static site.
 
-### Features
+## MVP features
 
-- Guided 4-4-6 breathing timer with 1–2 minute presets and optional looping.
-- Daily mood check-in with streak tracking and average mood stats.
-- Journal entries and daily intention stored privately in `localStorage`.
-- Minimal shadcn-inspired UI components (button, card, input, textarea, switch) styled with Tailwind CSS.
-- Static export ready for GitHub Pages via an environment-driven `basePath`.
+- Guided 4–4–6 breathing with one- and two-minute sessions
+- Pause, resume, reset, loop, and session-progress controls
+- Daily mood check-ins with streak, average, and seven-day history
+- Autosaved daily intentions
+- Reflection creation, editing, deletion, and undo recovery
+- Responsive layouts, visible keyboard focus, reduced-motion support, and accessible status updates
+- Fully local persistence with no account or network dependency
 
-### Tech Stack
+## Requirements
 
-- [Next.js 14 (App Router)](https://nextjs.org/docs/app)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- Custom shadcn-style UI primitives in `components/ui`
+- Node.js 20 or newer
+- npm 10 or newer
 
-## Local Development
-
-Install dependencies (already done if you used `create-next-app`):
+## Development
 
 ```bash
-npm install
-```
-
-Start the dev server:
-
-```bash
+npm ci
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to explore the app. Updates are applied live thanks to Fast Refresh.
+Open <http://localhost:3000>.
 
-## Static Build & Preview
-
-This project uses `output: "export"` so a static bundle is emitted into `out/`.
+## Validation
 
 ```bash
-# Build the static site
+npm run lint
 npm run build
+```
 
-# Optionally preview the static output
+The production build is exported to `out/`. Preview that exact output before a showcase or deployment:
+
+```bash
 npm run serve
 ```
 
-## GitHub Pages Deployment
+Set `NEXT_PUBLIC_BASE_PATH` when deploying beneath a subpath such as GitHub Pages:
 
-1. Set the `REPO_NAME` environment variable to your repository name (no leading slash) before building:
+```bash
+NEXT_PUBLIC_BASE_PATH=/mindful npm run build
+```
 
-   ```bash
-   export REPO_NAME="your-repo-name"
-   npm run build
-   ```
+## Local data model
 
-   The `basePath`/`assetPrefix` and routes adjust automatically when this variable is present.
+Mindful stores personal entries in the browser's `localStorage`:
 
-2. Commit and push the generated `out/` directory to the `gh-pages` branch. You can automate this with a simple script or GitHub Action; here's a quick manual approach:
+| Key | Data |
+| --- | --- |
+| `mindful:breath-loop` | Loop preference |
+| `mindful:moods` | Dated mood check-ins |
+| `mindful:intentions` | Daily intentions indexed by date |
+| `mindful:journals` | Reflection entries |
 
-   ```bash
-   npm run build
-   git subtree push --prefix out origin gh-pages
-   ```
+Breathing-session progress is intentionally temporary and resets after a refresh. Clearing browser site data removes all saved Mindful data; the MVP does not yet include accounts, synchronization, backup, or export.
 
-3. Enable GitHub Pages in your repository settings, pointing to the `gh-pages` branch.
+## Project structure
 
-When running locally you can omit `REPO_NAME`, and the app will use the root path.
-
-## Project Structure Highlights
-
-- `app/page.tsx` – Main dashboard with breathing, mood, journal, and stats sections.
-- `lib/use-local-storage.ts` – Lightweight hook for `localStorage` backed state with hydration awareness.
-- `components/ui/*` – Minimal shadcn-style UI components shared across the app.
-- `tailwind.config.ts` & `postcss.config.mjs` – Tailwind 4-ready configuration and modern theme tokens.
-
-Enjoy your mindful routine! Feel free to adapt the components and sections to suit your practice.
+- `app/page.tsx` — main wellness-tracker experience and state transitions
+- `app/globals.css` — design tokens, responsive layout, and interaction states
+- `components/ui/` — reusable interface controls
+- `lib/use-local-storage.ts` — hydration-safe local persistence
+- `next.config.ts` — static-export and optional base-path configuration

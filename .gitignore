@@ -13,6 +13,12 @@
 # testing
 /coverage
 
+# local design and QA artifacts
+/audit/
+/design-comparison.png
+/design-implementation.png
+/design-qa.md
+
 # next.js
 /.next/
 /out/

@@ -1,47 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
+import { ArrowLeft, ArrowRight, Leaf, LockSimple, Moon, SunHorizon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useLocalStorage } from "@/lib/use-local-storage";
 
-type MoodEntry = {
-  date: string;
-  value: number;
-};
-
-type JournalEntry = {
-  id: string;
-  date: string;
-  content: string;
-};
+type MoodEntry = { date: string; value: number };
+type JournalEntry = { id: string; date: string; content: string };
 
 const BREATH_PATTERN = [
   { label: "Inhale", seconds: 4 },
   { label: "Hold", seconds: 4 },
   { label: "Exhale", seconds: 6 },
 ] as const;
-
-const BREATH_CYCLE_DURATION = BREATH_PATTERN.reduce(
-  (total, phase) => total + phase.seconds,
-  0,
-);
-
-const BREATH_PRESETS = [
-  { label: "1 minute", value: 60 },
-  { label: "2 minutes", value: 120 },
-] as const;
-
+const CYCLE_SECONDS = BREATH_PATTERN.reduce((sum, phase) => sum + phase.seconds, 0);
+const PRESETS = [{ label: "1 minute", value: 60 }, { label: "2 minutes", value: 120 }] as const;
 const MOODS = [
   { emoji: "😞", label: "Low", value: 1 },
   { emoji: "😐", label: "Steady", value: 2 },
@@ -50,447 +26,263 @@ const MOODS = [
   { emoji: "🤩", label: "Radiant", value: 5 },
 ] as const;
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
-
-const formatDisplayDate = (isoDate: string) => {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(`${isoDate}T00:00:00`));
+const localDateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
-const calculateStreak = (entries: MoodEntry[], today: string) => {
-  if (entries.length === 0) return 0;
-  const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
-  const hasToday = sorted[0]?.date === today;
+const formatDate = (date: string, full = false) => new Intl.DateTimeFormat("en-US", {
+  ...(full ? { weekday: "long" as const } : {}),
+  month: full ? "long" : "short",
+  day: "numeric",
+  ...(full ? { year: "numeric" as const } : {}),
+}).format(new Date(`${date}T12:00:00`));
 
+const calculateStreak = (entries: MoodEntry[], today: string) => {
+  const dates = new Set(entries.map((entry) => entry.date));
+  const cursor = new Date(`${today}T12:00:00`);
+  if (!dates.has(today)) cursor.setDate(cursor.getDate() - 1);
   let streak = 0;
-  const cursor = new Date(`${today}T00:00:00`);
-  if (!hasToday) {
+  while (dates.has(localDateKey(cursor))) {
+    streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
-
-  for (const entry of sorted) {
-    const entryDate = new Date(`${entry.date}T00:00:00`);
-    if (entryDate.getTime() === cursor.getTime()) {
-      streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    } else if (entryDate.getTime() < cursor.getTime()) {
-      break;
-    }
-  }
-
   return streak;
 };
 
-const getBreathPhase = (elapsedSeconds: number) => {
-  if (elapsedSeconds === 0) {
-    return {
-      label: BREATH_PATTERN[0].label,
-      secondsRemaining: BREATH_PATTERN[0].seconds,
-      secondsInPhase: 0,
-    };
-  }
-
-  const position = elapsedSeconds % BREATH_CYCLE_DURATION;
-  let accumulated = 0;
-
-  for (const phase of BREATH_PATTERN) {
-    const phaseEnd = accumulated + phase.seconds;
-    if (position < phaseEnd) {
-      return {
-        label: phase.label,
-        secondsRemaining: Math.max(
-          phase.seconds - Math.floor(position - accumulated),
-          1,
-        ),
-        secondsInPhase: Math.floor(position - accumulated),
-      };
+const getPhase = (elapsed: number) => {
+  const position = elapsed % CYCLE_SECONDS;
+  let start = 0;
+  for (let index = 0; index < BREATH_PATTERN.length; index += 1) {
+    const phase = BREATH_PATTERN[index];
+    if (position < start + phase.seconds) {
+      return { index, label: phase.label, seconds: Math.max(phase.seconds - Math.floor(position - start), 1) };
     }
-    accumulated = phaseEnd;
+    start += phase.seconds;
   }
-
-  return {
-    label: BREATH_PATTERN[0].label,
-    secondsRemaining: BREATH_PATTERN[0].seconds,
-    secondsInPhase: 0,
-  };
+  return { index: 0, label: "Inhale", seconds: 4 };
 };
 
 export default function Home() {
-  const today = todayKey();
-
-  const [preset, setPreset] = useState<number>(BREATH_PRESETS[0].value);
+  const [today, setToday] = useState<string | null>(null);
+  const [preset, setPreset] = useState(60);
   const [elapsed, setElapsed] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [loop, setLoop, loopHydrated] = useLocalStorage<boolean>(
-    "mindful:breath-loop",
-    false,
-  );
-
-  const [moods, setMoods, moodsHydrated] = useLocalStorage<MoodEntry[]>(
-    "mindful:moods",
-    [],
-  );
-  const [intentions, setIntentions, intentionsHydrated] = useLocalStorage<
-    Record<string, string>
-  >("mindful:intentions", {});
-  const [journalEntries, setJournalEntries, journalsHydrated] =
-    useLocalStorage<JournalEntry[]>("mindful:journals", []);
-
-  const [journalDraft, setJournalDraft] = useState("");
+  const [running, setRunning] = useState(false);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [draft, setDraft] = useState("");
+  const [editingJournalId, setEditingJournalId] = useState<string | null>(null);
+  const [deletedJournal, setDeletedJournal] = useState<JournalEntry | null>(null);
+  const [reflectionStatus, setReflectionStatus] = useState("");
+  const [intentionStatus, setIntentionStatus] = useState<
+    "idle" | "saving" | "saved"
+  >("idle");
+  const [loop, setLoop, loopReady] = useLocalStorage("mindful:breath-loop", false);
+  const [moods, setMoods, moodsReady] = useLocalStorage<MoodEntry[]>("mindful:moods", []);
+  const [intentions, setIntentions, intentionsReady] = useLocalStorage<Record<string, string>>("mindful:intentions", {});
+  const [journals, setJournals, journalsReady] = useLocalStorage<JournalEntry[]>("mindful:journals", []);
 
   useEffect(() => {
-    if (!isRunning || startTime === null) return;
+    const update = () => setToday(localDateKey());
+    update();
+    const timer = window.setInterval(update, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
+  useEffect(() => {
+    if (!running || startedAt === null) return;
     let frame: number;
-
     const tick = () => {
-      const diff = (Date.now() - startTime) / 1000;
-      const clamped = Math.min(diff, preset);
-
-      setElapsed(clamped);
-
-      if (clamped >= preset) {
+      const next = Math.min((Date.now() - startedAt) / 1000, preset);
+      setElapsed(next);
+      if (next >= preset) {
         if (loop) {
-          const now = Date.now();
-          setStartTime(now);
+          setStartedAt(Date.now());
           setElapsed(0);
-        } else {
-          setIsRunning(false);
-        }
+        } else setRunning(false);
         return;
       }
-
       frame = requestAnimationFrame(tick);
     };
-
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [isRunning, startTime, preset, loop]);
+  }, [loop, preset, running, startedAt]);
 
-  const handleStartPause = () => {
-    if (isRunning) {
-      setIsRunning(false);
-      return;
-    }
+  useEffect(() => {
+    if (intentionStatus !== "saving") return;
+    const timer = window.setTimeout(() => setIntentionStatus("saved"), 500);
+    return () => window.clearTimeout(timer);
+  }, [intentionStatus]);
 
-    const restartFrom = elapsed >= preset ? 0 : elapsed;
-    if (restartFrom !== elapsed) {
-      setElapsed(restartFrom);
-    }
-    setStartTime(Date.now() - restartFrom * 1000);
-    setIsRunning(true);
+  const toggleTimer = () => {
+    if (running) return setRunning(false);
+    const next = elapsed >= preset ? 0 : elapsed;
+    setElapsed(next);
+    setStartedAt(Date.now() - next * 1000);
+    setRunning(true);
   };
 
-  const handleReset = () => {
-    setIsRunning(false);
-    setElapsed(0);
-    setStartTime(null);
-  };
-
-  const handlePresetChange = (value: number) => {
-    setPreset(value);
-    setElapsed(0);
-    setStartTime(null);
-    setIsRunning(false);
-  };
-
-  const totalSeconds = preset;
   const wholeElapsed = Math.floor(elapsed);
-  const remainingSeconds = Math.max(totalSeconds - wholeElapsed, 0);
-  const progress = Math.min((elapsed / totalSeconds) * 100, 100);
-  const activePhase = getBreathPhase(wholeElapsed);
+  const phase = getPhase(wholeElapsed);
+  const previousPhase = BREATH_PATTERN[(phase.index + 2) % 3].label;
+  const nextPhase = BREATH_PATTERN[(phase.index + 1) % 3].label;
+  const progress = Math.min((elapsed / preset) * 100, 100);
+  const remainingSeconds = Math.max(preset - wholeElapsed, 0);
+  const remainingLabel = `${Math.floor(remainingSeconds / 60)}:${`${remainingSeconds % 60}`.padStart(2, "0")}`;
+  const todaysMood = useMemo(() => today ? moods.find((item) => item.date === today) : undefined, [moods, today]);
+  const streak = useMemo(() => today ? calculateStreak(moods, today) : 0, [moods, today]);
+  const averageMood = useMemo(() => moods.length ? moods.reduce((sum, mood) => sum + mood.value, 0) / moods.length : null, [moods]);
+  const week = useMemo(() => {
+    if (!today) return [];
+    const anchor = new Date(`${today}T12:00:00`);
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(anchor);
+      date.setDate(anchor.getDate() - (6 - index));
+      const key = localDateKey(date);
+      return { key, label: new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(date), mood: moods.find((item) => item.date === key) };
+    });
+  }, [moods, today]);
+  const ready = Boolean(today && loopReady && moodsReady && intentionsReady && journalsReady);
 
-  const todaysMood = useMemo(
-    () => moods.find((entry) => entry.date === today),
-    [moods, today],
-  );
-
-  const streak = useMemo(
-    () => calculateStreak(moods, today),
-    [moods, today],
-  );
-
-  const averageMood = useMemo(() => {
-    if (moods.length === 0) return null;
-    const total = moods.reduce((sum, entry) => sum + entry.value, 0);
-    return total / moods.length;
-  }, [moods]);
-
-  const sortedJournalEntries = useMemo(
-    () =>
-      [...journalEntries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
-    [journalEntries],
-  );
-
-  const handleMoodSelect = (value: number) => {
-    setMoods((prev) => {
-      const filtered = prev.filter((entry) => entry.date !== today);
-      return [...filtered, { date: today, value }].sort((a, b) =>
-        a.date.localeCompare(b.date),
-      );
+  const selectMood = (value: number) => {
+    if (!today) return;
+    setMoods((items) => {
+      const withoutToday = items.filter((item) => item.date !== today);
+      return todaysMood?.value === value
+        ? withoutToday
+        : [...withoutToday, { date: today, value }];
     });
   };
-
-  const handleIntentionChange = (value: string) => {
-    setIntentions((prev) => ({
-      ...prev,
-      [today]: value,
-    }));
+  const saveJournal = () => {
+    const content = draft.trim();
+    if (!content || !today) return;
+    if (editingJournalId) {
+      setJournals((items) =>
+        items.map((item) =>
+          item.id === editingJournalId ? { ...item, content } : item,
+        ),
+      );
+      setReflectionStatus("Reflection updated on this device");
+    } else {
+      setJournals((items) => [
+        { id: `entry-${Date.now()}`, date: today, content },
+        ...items,
+      ]);
+      setReflectionStatus("Reflection saved on this device");
+    }
+    setDraft("");
+    setEditingJournalId(null);
+    setDeletedJournal(null);
   };
 
-  const handleJournalSave = () => {
-    const content = journalDraft.trim();
-    if (!content) return;
-
-    setJournalEntries((prev) => [
-      { id: `entry-${Date.now()}`, date: today, content },
-      ...prev,
-    ]);
-    setJournalDraft("");
+  const editLatestJournal = () => {
+    if (!journals[0]) return;
+    setDraft(journals[0].content);
+    setEditingJournalId(journals[0].id);
+    setReflectionStatus("Editing latest reflection");
   };
 
-  const hydrationReady =
-    moodsHydrated && journalsHydrated && intentionsHydrated && loopHydrated;
+  const deleteLatestJournal = () => {
+    if (!journals[0]) return;
+    setDeletedJournal(journals[0]);
+    setJournals((items) => items.slice(1));
+    setEditingJournalId(null);
+    setDraft("");
+    setReflectionStatus("");
+  };
+
+  const undoJournalDelete = () => {
+    if (!deletedJournal) return;
+    setJournals((items) => [deletedJournal, ...items]);
+    setDeletedJournal(null);
+    setReflectionStatus("Deletion undone");
+  };
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-8">
-      <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.25rem] text-secondary">
-          Mindful
-        </p>
-        <h1 className="text-3xl font-semibold sm:text-4xl">
-          A daily ritual for calmer, brighter days.
-        </h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Flow through guided breathing, log your mood, capture reflections, and
-          watch your streak grow. Everything stays on this device thanks to
-          private local storage.
-        </p>
+    <main className="mindful-shell">
+      <aside className="day-rail" aria-label="Daily rhythm">
+        <div className="brand-mark"><Leaf size={28} weight="duotone" /><span>Mindful</span></div>
+        <div className="day-steps">
+          <div className="day-step day-step--morning">
+            <span className="day-step__icon"><SunHorizon size={25} weight="light" /></span>
+            <div><p>Morning</p><span>Set an intention and start your day with care.</span></div>
+          </div>
+          <div className="day-step day-step--now" aria-current="step">
+            <span className="day-step__icon"><i /></span>
+            <div><p>Now</p><span>Pause. Breathe. Come back to the present.</span></div>
+          </div>
+          <div className="day-step day-step--evening">
+            <span className="day-step__icon"><Moon size={25} weight="light" /></span>
+            <div><p>Evening</p><span>Reflect on your day and close with gratitude.</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <section className="practice-area">
+        <header className="practice-header">
+          <h1>A calmer moment, one breath at a time.</h1>
+          <p>Breathe with intention, check in with your mood, and capture what matters. Everything stays privately on this device.</p>
+          <time>{today ? formatDate(today, true) : "Preparing today…"}</time>
+        </header>
+        <div className="breath-practice">
+          <p className="breath-practice__eyebrow">4–4–6 breathing</p>
+          <div className="breath-stage">
+            <div className="phase-neighbor" aria-hidden="true"><span><ArrowLeft size={21} /></span><p>{previousPhase}</p></div>
+            <div className={`breath-circle ${running ? "is-running" : ""}`} data-phase={phase.label.toLowerCase()} style={{ "--session-progress": `${progress * 3.6}deg` } as React.CSSProperties}>
+              <div className="breath-circle__content"><p>{phase.label}</p><strong>{`${phase.seconds}`.padStart(2, "0")}<small>s</small></strong><span>{phase.seconds} seconds</span><span>4–4–6 breathing</span></div>
+            </div>
+            <div className="phase-neighbor" aria-hidden="true"><span><ArrowRight size={21} /></span><p>{nextPhase}</p></div>
+          </div>
+          <p className="sr-only" aria-live="polite">{running ? `${phase.label}.` : elapsed >= preset ? "Breathing session complete." : elapsed > 0 ? "Breathing session paused." : "Breathing session ready."}</p>
+          <div
+            className="session-progress"
+            role="progressbar"
+            aria-label="Breathing session progress"
+            aria-valuemin={0}
+            aria-valuemax={preset}
+            aria-valuenow={wholeElapsed}
+            aria-valuetext={elapsed >= preset ? "Session complete" : `${remainingLabel} remaining`}
+          >
+            <div className="session-progress__track" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
+            <span>{elapsed >= preset ? "Session complete" : `${remainingLabel} remaining`}</span>
+          </div>
+          <div className="breath-controls">
+            <div className="preset-control" aria-label="Session length">
+              {PRESETS.map((option) => <Button key={option.value} type="button" variant="segmented" className={preset === option.value ? "is-active" : ""} onClick={() => { setPreset(option.value); setElapsed(0); setStartedAt(null); setRunning(false); }}>{option.label}</Button>)}
+            </div>
+            <label className={`loop-control ${loop ? "is-active" : ""}`}><Switch checked={loop} onCheckedChange={setLoop} disabled={!ready} aria-label="Loop breathing session" /><span>Loop</span></label>
+          </div>
+          <Button className="begin-button" onClick={toggleTimer}>{running ? "Pause" : elapsed > 0 ? "Resume" : "Begin"}</Button>
+          {elapsed > 0 ? <Button type="button" variant="quiet" size="compact" className="reset-session" onClick={() => { setRunning(false); setElapsed(0); setStartedAt(null); }}>Reset session</Button> : <p className="keyboard-hint">Select Begin to start</p>}
+        </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="overflow-hidden">
-          <CardHeader className="flex flex-col gap-4 pb-0 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Breathing guide</CardTitle>
-              <CardDescription>4-4-6 cadence with quick presets.</CardDescription>
+      <aside className="checkin-panel" aria-label="Daily check-in">
+        <div className="stats-row">
+          <div><span>Mood streak</span><strong>{streak} {streak === 1 ? "day" : "days"}</strong></div>
+          <div><span>Overall mood</span><strong>{averageMood ? averageMood.toFixed(1) : "—"} / 5</strong></div>
+          <div><span>Total reflections</span><strong>{journals.length}</strong></div>
+        </div>
+        <section className="panel-section"><h2>Mood check-in</h2><p>How are you feeling right now?</p><div className="mood-options">
+          {MOODS.map((mood) => { const selected = todaysMood?.value === mood.value; return <Button key={mood.value} type="button" variant="mood" className={selected ? "is-selected" : ""} onClick={() => selectMood(mood.value)} disabled={!ready} aria-pressed={selected} title={selected ? `Clear ${mood.label} mood` : `Log ${mood.label} mood`}><span>{mood.emoji}</span><small>{mood.label}</small></Button>; })}
+        </div></section>
+        <section className={`panel-section mood-trend ${moods.length < 2 ? "mood-trend-empty" : ""}`}><h2>7-day mood</h2>
+          {moods.length >= 2 ? <div className="mood-chart">
+            <div className="mood-scale" aria-hidden="true"><span>5</span><span>1</span></div>
+            <div className="mood-bars" aria-label="Seven-day mood history">
+              {week.map((day) => { const description = `${day.label}: ${day.mood ? `${day.mood.value} out of 5` : "no mood logged"}`; return <div key={day.key}><span className="mood-value" aria-hidden="true">{day.mood?.value ?? "—"}</span><span role="img" title={description} style={{ height: `${day.mood ? 20 + day.mood.value * 9 : 8}px` }} className={`mood-bar ${day.key === today ? "is-today" : ""}`} aria-label={description} /><small>{day.label}</small></div>; })}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {BREATH_PRESETS.map((presetOption) => (
-                <Button
-                  key={presetOption.value}
-                  variant={
-                    presetOption.value === preset ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => handlePresetChange(presetOption.value)}
-                >
-                  {presetOption.label}
-                </Button>
-              ))}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="rounded-xl border border-border/80 bg-gradient-to-br from-white/90 to-primary/5 p-6 shadow-sm dark:from-slate-900/70 dark:to-primary/10">
-              <div className="flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.3rem] text-secondary">
-                    {activePhase.label}
-                  </p>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-4xl font-semibold tabular-nums">
-                      {activePhase.secondsRemaining.toString().padStart(2, "0")}s
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      remaining • {wholeElapsed}s elapsed
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={loop}
-                    disabled={!hydrationReady}
-                    onCheckedChange={(state) => setLoop(state)}
-                    aria-label="Loop breathing session"
-                  />
-                  <span className="text-sm text-muted-foreground">Loop</span>
-                </div>
-              </div>
-
-              <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Session ends in {remainingSeconds}s
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={handleStartPause}>
-                {isRunning ? "Pause" : elapsed > 0 ? "Resume" : "Begin"}
-              </Button>
-              <Button variant="outline" onClick={handleReset}>
-                Reset
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md shadow-primary/10">
-          <CardHeader>
-            <CardTitle>Daily stats</CardTitle>
-            <CardDescription>
-              Keep an eye on your trend at a glance.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-lg border border-border/80 bg-card/70 p-4 shadow-floating">
-                <p className="text-xs uppercase tracking-[0.2rem] text-secondary">
-                  Average mood
-                </p>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-3xl font-semibold tabular-nums">
-                    {averageMood ? averageMood.toFixed(1) : "—"}
-                  </span>
-                  <span className="text-sm text-muted-foreground">/ 5</span>
-                </div>
-              </div>
-              <div className="rounded-lg border border-border/80 bg-card/70 p-4 shadow-floating">
-                <p className="text-xs uppercase tracking-[0.2rem] text-secondary">
-                  Current streak
-                </p>
-                <p className="mt-2 text-3xl font-semibold tabular-nums">
-                  {streak}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border/80 bg-card/70 p-4 shadow-floating sm:col-span-2">
-                <p className="text-xs uppercase tracking-[0.2rem] text-secondary">
-                  Journal entries
-                </p>
-                <p className="mt-2 text-3xl font-semibold tabular-nums">
-                  {journalEntries.length}
-                </p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Stats update instantly as your local entries change. No account or
-              network required.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Mood check-in</CardTitle>
-            <CardDescription>
-              Tap the emoji that best matches how you feel right now.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid grid-cols-5 gap-3">
-              {MOODS.map((mood) => {
-                const isActive = todaysMood?.value === mood.value;
-                return (
-                  <Button
-                    key={mood.value}
-                    variant={isActive ? "default" : "outline"}
-                    className="flex h-auto flex-col gap-1 px-3 py-4 text-2xl"
-                    onClick={() => handleMoodSelect(mood.value)}
-                    disabled={!hydrationReady}
-                  >
-                    <span>{mood.emoji}</span>
-                    <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                      {mood.label}
-                    </span>
-                  </Button>
-                );
-              })}
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">
-                Daily intention
-              </p>
-              <Input
-                value={intentions[today] ?? ""}
-                maxLength={80}
-                onChange={(event) => handleIntentionChange(event.target.value)}
-                placeholder="What do you want to cultivate today?"
-                disabled={!hydrationReady}
-              />
-            </div>
-
-            {todaysMood ? (
-              <p className="text-sm text-muted-foreground">
-                Logged for <span className="font-medium">{formatDisplayDate(today)}</span>. Keep it up!
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Logging once a day keeps your streak alive.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Journal</CardTitle>
-            <CardDescription>
-              Capture a thought from today. Entries stay on this device.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              value={journalDraft}
-              onChange={(event) => setJournalDraft(event.target.value)}
-              placeholder="Breathe in, notice, and write what you discover..."
-              disabled={!hydrationReady}
-            />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{journalDraft.trim().length} characters</span>
-              <Button size="sm" onClick={handleJournalSave} disabled={!journalDraft.trim() || !hydrationReady}>
-                Save entry
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-muted-foreground">
-                Recent entries
-              </p>
-              {sortedJournalEntries.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nothing here yet—your reflections will appear as you save them.
-                </p>
-              ) : (
-                <ul className="space-y-3">
-                  {sortedJournalEntries.map((entry) => (
-                    <li
-                      key={entry.id}
-                      className="rounded-lg border border-border/70 bg-card/70 p-4"
-                    >
-                      <p className="text-xs uppercase tracking-[0.2rem] text-secondary">
-                        {formatDisplayDate(entry.date)}
-                      </p>
-                      <p className="mt-2 text-sm leading-relaxed text-foreground">
-                        {entry.content}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div> : <div className="trend-empty-state"><p>Your 7-day trend appears after two mood check-ins.</p><span>{moods.length} of 2 check-ins</span></div>}
+        </section>
+        <section className="panel-section"><h2 id="daily-intention-heading">Daily intention</h2><p>Set a gentle intention for today.</p><Input id="daily-intention" aria-labelledby="daily-intention-heading" value={today ? (intentions[today] ?? "") : ""} onChange={(event) => { if (!today) return; setIntentions((items) => ({ ...items, [today]: event.target.value })); setIntentionStatus("saving"); }} placeholder="What do you want to cultivate today?" maxLength={80} disabled={!ready} /><p className="save-status" aria-live="polite">{intentionStatus === "saving" ? "Saving…" : intentionStatus === "saved" ? "Saved on this device" : ""}</p></section>
+        <section className="panel-section reflection-section"><h2 id="reflection-heading">Reflection</h2><p>Capture a thought from today.</p><Textarea id="reflection-entry" aria-labelledby="reflection-heading" value={draft} onChange={(event) => { setDraft(event.target.value); setReflectionStatus(editingJournalId ? "Editing latest reflection" : ""); }} placeholder="Breathe in, notice, and write what you discover…" maxLength={1500} disabled={!ready} /><div className="reflection-actions"><span>{draft.length} / 1500</span><Button type="button" className="reflection-save" size="compact" onClick={saveJournal} disabled={!draft.trim() || !ready}>{editingJournalId ? "Update reflection" : "Save reflection"}</Button></div>
+          <p className="reflection-status" aria-live="polite">{reflectionStatus}</p>
+          {deletedJournal ? <div className="undo-notice" role="status"><span>Reflection deleted</span><Button type="button" variant="quiet" size="compact" onClick={undoJournalDelete}>Undo</Button></div> : null}
+          {journals[0] ? <div className="latest-entry"><div><span>Latest reflection · {formatDate(journals[0].date)}</span><p>{journals[0].content}</p></div><div className="entry-actions"><Button type="button" variant="quiet" size="compact" onClick={editLatestJournal}>Edit</Button><Button type="button" variant="destructive" size="compact" onClick={deleteLatestJournal} aria-label={`Delete reflection from ${formatDate(journals[0].date)}`}>Delete</Button></div></div> : null}
+        </section>
+      </aside>
+      <footer className="privacy-note"><LockSimple size={15} weight="fill" />Private by design. Everything stays on this device. No account or network required.</footer>
     </main>
   );
 }
