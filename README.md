@@ -1,78 +1,105 @@
 # Mindful
 
-Mindful is a private, on-device wellness tracker for guided breathing, daily mood check-ins, intentions, and short reflections. It is built with Next.js and exports as a static site.
+[![Deploy to GitHub Pages](https://github.com/seonglinchua/mindful/actions/workflows/deploy.yml/badge.svg)](https://github.com/seonglinchua/mindful/actions/workflows/deploy.yml)
 
-## MVP features
+A calm, private wellness tracker for guided breathing, daily mood check-ins, intentions, and short reflections. Mindful runs entirely in the browser: no account, backend, analytics service, or network API is required.
 
-- Guided 4–4–6 breathing with one- and two-minute sessions
-- Pause, resume, reset, loop, and session-progress controls
-- Daily mood check-ins with streak, average, and seven-day history
-- Autosaved daily intentions
-- Reflection creation, editing, deletion, and undo recovery
-- Responsive layouts, visible keyboard focus, reduced-motion support, and accessible status updates
-- Fully local persistence with no account or network dependency
+**Live app:** [seonglinchua.github.io/mindful](https://seonglinchua.github.io/mindful/)
 
-## Requirements
+![Mindful wellness tracker](docs/mindful-preview.jpg)
 
-- Node.js 20 or newer
-- npm 10 or newer
+## What you can do
 
-## Development
+- Follow a guided **4–4–6 breathing** session
+- Choose a one- or two-minute session and optionally loop it
+- Pause, resume, reset, and follow overall session progress
+- Record a daily mood and build a seven-day history
+- Track a mood streak and overall average
+- Set an autosaved daily intention
+- Create, edit, delete, and restore reflections
+- Use the experience across desktop and mobile layouts
 
-```bash
-npm ci
-npm run dev
-```
+Mindful also includes visible keyboard focus, semantic control states, polite status announcements, and reduced-motion support.
 
-Open <http://localhost:3000>.
+## Privacy and persistence
 
-## Validation
+Personal wellness data stays in the current browser profile through `localStorage`.
 
-```bash
-npm run lint
-npm run build
-```
-
-The production build is exported to `out/`. Preview that exact output before a showcase or deployment:
-
-```bash
-npm run serve
-```
-
-Set `NEXT_PUBLIC_BASE_PATH` when deploying beneath a subpath such as GitHub Pages:
-
-```bash
-NEXT_PUBLIC_BASE_PATH=/mindful npm run build
-```
-
-## Local data model
-
-Mindful stores personal entries in the browser's `localStorage`:
-
-| Key | Data |
+| Storage key | Contents |
 | --- | --- |
 | `mindful:breath-loop` | Loop preference |
 | `mindful:moods` | Dated mood check-ins |
 | `mindful:intentions` | Daily intentions indexed by date |
 | `mindful:journals` | Reflection entries |
 
-Breathing-session progress is intentionally temporary and resets after a refresh. Clearing browser site data removes all saved Mindful data; the MVP does not yet include accounts, synchronization, backup, or export.
+Breathing-session progress is intentionally temporary and resets after refresh. Clearing site data removes all saved Mindful data. Version 0.1.0 does not include accounts, synchronization, cloud backup, or export.
+
+## Tech stack
+
+- Next.js 15 App Router
+- React 19 and TypeScript
+- Tailwind CSS 4
+- Phosphor Icons
+- Static export hosted with GitHub Pages
+
+## Run locally
+
+Requirements: Node.js 20+ and npm 10+.
+
+```bash
+git clone https://github.com/seonglinchua/mindful.git
+cd mindful
+npm ci
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Validate and preview
+
+```bash
+npm run lint
+npm run build
+npm run serve
+```
+
+`npm run build` creates the static site in `out/`. `npm run serve` previews a root-path build from that directory.
+
+Available scripts:
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Turbopack development server |
+| `npm run lint` | Run ESLint |
+| `npm run build` | Create the production static export |
+| `npm run serve` | Serve the generated `out/` directory |
+
+## GitHub Pages deployment
+
+Pushes to `main` trigger [the deployment workflow](.github/workflows/deploy.yml). It installs locked dependencies, builds with the `/mindful` base path, uploads `out/`, and deploys through GitHub Pages.
+
+To reproduce that build locally:
+
+```bash
+NEXT_PUBLIC_BASE_PATH=/mindful npm run build
+```
+
+In the GitHub repository settings, Pages should use **GitHub Actions** as its source.
 
 ## Project structure
 
-- `app/page.tsx` — main wellness-tracker experience and state transitions
-- `app/globals.css` — design tokens, responsive layout, and interaction states
-- `components/ui/` — reusable interface controls
-- `lib/use-local-storage.ts` — hydration-safe local persistence
-- `next.config.ts` — static-export and optional base-path configuration
+```text
+app/
+  globals.css          Design tokens, layout, and interaction states
+  layout.tsx           Root metadata and fonts
+  page.tsx             Wellness tracker and feature logic
+components/ui/         Reusable interface controls
+lib/
+  use-local-storage.ts Hydration-safe browser persistence
+  utils.ts             Shared class-name utility
+.github/workflows/     GitHub Pages automation
+```
 
-## MVP release checklist
+## Release
 
-1. Install the locked dependencies with `npm ci`.
-2. Run `npm run lint`.
-3. Run `NEXT_PUBLIC_BASE_PATH=/mindful npm run build`.
-4. Confirm GitHub Pages is configured to deploy through GitHub Actions.
-5. Push the reviewed `main` branch and watch the **Deploy to GitHub Pages** workflow.
-6. Verify the deployed `/mindful/` route, refresh behavior, breathing controls, and local persistence in a clean browser profile.
-
-The app uses a static export, so `next start` is intentionally not included. Use `npm run serve` to preview a root-path build from `out/` locally.
+The current MVP is **v0.1.0**. See [CHANGELOG.md](CHANGELOG.md) for included functionality and release notes.
