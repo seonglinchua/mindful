@@ -65,3 +65,14 @@ Breathing-session progress is intentionally temporary and resets after a refresh
 - `components/ui/` — reusable interface controls
 - `lib/use-local-storage.ts` — hydration-safe local persistence
 - `next.config.ts` — static-export and optional base-path configuration
+
+## MVP release checklist
+
+1. Install the locked dependencies with `npm ci`.
+2. Run `npm run lint`.
+3. Run `NEXT_PUBLIC_BASE_PATH=/mindful npm run build`.
+4. Confirm GitHub Pages is configured to deploy through GitHub Actions.
+5. Push the reviewed `main` branch and watch the **Deploy to GitHub Pages** workflow.
+6. Verify the deployed `/mindful/` route, refresh behavior, breathing controls, and local persistence in a clean browser profile.
+
+The app uses a static export, so `next start` is intentionally not included. Use `npm run serve` to preview a root-path build from `out/` locally.
